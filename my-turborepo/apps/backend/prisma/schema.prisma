@@ -1,0 +1,116 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// to update the schema, run
+//  npx prisma generate
+//  npx `prisma db push`
+//   (reasoning to use db push instead of `npx prisma migrate`:
+//   https://planetscale.com/docs/prisma/automatic-prisma-migrations)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "mysql"
+  url          = env("DATABASE_URL")
+  relationMode = "prisma"
+}
+
+model User {
+  id                 String               @id @default(uuid())
+  xlogin             String               @unique // used to identify the user (add to a project...)
+  createdAt          DateTime             @default(now())
+  createdTasks       Task[]
+  createdUpdates     TaskUpdate[]
+  ProjectParticipant ProjectParticipant[]
+
+  @@index([xlogin], name: "xlogin") // often want to find user by xlogin
+}
+
+model ProjectParticipant {
+  id        String    @id @default(uuid())
+  project   Project   @relation(fields: [projectId], references: [id])
+  projectId String
+  user      User      @relation(fields: [userId], references: [id])
+  userId    String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  isOwner   Boolean   @default(false)
+
+  @@unique([projectId, userId, deletedAt], name: "uniqueParticipants") // given user can be added to a project only once; deletedAt is used to allow re-adding a user to a project
+  @@index([projectId], name: "projectId") // MySQL FK
+  @@index([userId], name: "userId") // MySQL FK
+}
+
+model Project {
+  id                 String               @id @default(uuid())
+  name               String
+  description        String
+  createdAt          DateTime             @default(now())
+  deletedAt          DateTime?
+  attachments        Attachment[]
+  tasks              Task[]
+  ProjectParticipant ProjectParticipant[]
+}
+
+model Attachment {
+  id        String    @id @default(uuid())
+  name      String
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+  project   Project   @relation(fields: [projectId], references: [id])
+  projectId String
+
+  @@index([projectId], name: "projectId") // MySQL FK
+}
+
+model Task {
+  id          String       @id @default(uuid())
+  name        String
+  description String
+  createdAt   DateTime     @default(now())
+  deletedAt   DateTime?
+  state       State        @default(TODO)
+  weight      Int          @default(1) // todo range validation
+  priority    Priority
+  deadline    DateTime
+  icon        String? // when null, show default icon pic
+  taskUpdates TaskUpdate[]
+
+  project   Project @relation(fields: [projectId], references: [id])
+  projectId String
+  creator   User    @relation(fields: [creatorId], references: [id])
+  creatorId String
+
+  // todo maybe add indexes to be able to sort by state, weight, priority & deadline blazingly fast
+  @@index([projectId], name: "projectId") // MySQL FK
+  @@index([creatorId], name: "creatorId") // MySQL FK
+}
+
+model TaskUpdate {
+  id        String   @id @default(uuid())
+  name      String // no unique constraint necessary i guess; that is the user's problem
+  createdAt DateTime @default(now())
+  content   String   @db.VarChar(1000)
+  task      Task     @relation(fields: [taskId], references: [id])
+  taskId    String
+  creator   User?    @relation(fields: [creatorId], references: [id]) // null if auto-generated
+  creatorId String?
+
+  @@index([taskId], name: "taskId") // MySQL FK
+  @@index([creatorId], name: "creatorId") // MySQL FK
+  @@index([createdAt]) // want to display updates in order of creation
+}
+
+enum State {
+  TODO
+  SENT_FOR_REVIEW
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}

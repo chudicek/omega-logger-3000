@@ -1,0 +1,92 @@
+@startuml schema
+
+hide circle
+skinparam Linetype ortho
+skinparam Ranksep 60
+skinparam Nodesep 100
+
+entity User {
+    * id: <<uuid>>
+    ---
+    * userName: string
+    * email: string
+    * createdAt: timestamp
+    deletedAt: timestamp
+    * hashedPassword: string
+    * salt: string
+    profilePic: URL
+}
+
+entity Project {
+    * id: <<uuid>>
+    ---
+    * name: string
+    * description: string
+    * createdAt: timestamp
+    deletedAt: timestamp
+}
+
+entity Attachment {
+    * id: <<uuid>>
+    ---
+    * name: string
+    * url: URL
+    * createdAt: timestamp
+    deletedAt: timestamp
+}
+
+entity Task {
+    * id: <<uuid>>
+    ---
+    * name: string
+    * description: string
+    * createdBy: <<FK>>
+    * createdAt: timestamp
+    deletedAt: timestamp
+    * state: TaskState
+    * weight: number
+        ' todo limit weight range in bussiness logic
+    * priority: Priority
+    * deadline: timestamp
+    * icon: URL
+}
+
+entity TaskUpdate {
+    * id: <<uuid>>
+    ---
+    * createdAt: timestamp
+    * content: URL
+    createdBy: <<FK>>
+}
+
+' user - project join
+entity UserProject {
+    * id: <<uuid>>
+    ---
+    * userId: <<FK>>
+    * projectId: <<FK>> 
+    * createdAt: timestamp
+    * isOwner: boolean
+}
+
+enum TaskState {
+    TODO
+    SENT_FOR_REVIEW
+    DONE
+}
+
+enum Priority {
+    LOW
+    MEDIUM
+    HIGH
+}
+
+User ||..o{ UserProject
+UserProject }o..|| Project
+Project ||..o{ Task
+Project ||..o{ Attachment
+Task ||..o{ TaskUpdate
+User ||..o{ Task
+User |o..o{ TaskUpdate
+
+@enduml
